@@ -1,0 +1,60 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "prHourlyLimit": 10,
+  "rebaseWhen": "conflicted",
+  "minimumReleaseAge": "7 days",
+  "osvVulnerabilityAlerts": true,
+  "lockFileMaintenance": { "enabled": true },
+  "packageRules": [
+    {
+      "matchDatasources": ["pypi"],
+      "matchPackageNames": ["mergify-cli"],
+      "minimumReleaseAge": "2 days"
+    },
+    {
+      "description": "Bump the self-referenced action version immediately: it is our own freshly-released major (README usage example + ci.yaml dogfooding), so the third-party stability wait is pointless.",
+      "matchDepNames": ["Mergifyio/setup-cli"],
+      "minimumReleaseAge": "0"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^action\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)(?: versioning=(?<versioning>[a-z0-9-]+))?\\s+default:\\s*(?<currentValue>[^\\s]+)"
+      ]
+    },
+    {
+      "description": "Keep the auto-generated README inputs table in sync with the mergify_cli_version default in action.yml, so the bump PR lands both files in one go and the autodoc check passes.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^README\\.md$/"
+      ],
+      "matchStrings": [
+        "\\| `mergify_cli_version` \\| string \\| \\w+ \\| `(?<currentValue>[^`]+)` \\|"
+      ],
+      "datasourceTemplate": "pypi",
+      "depNameTemplate": "mergify-cli"
+    },
+    {
+      "description": "Bump the self-referenced action version pinned in the README usage example on each new setup-cli release.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^README\\.md$/"
+      ],
+      "matchStrings": [
+        "uses: Mergifyio/setup-cli@(?<currentValue>v\\d+)"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "Mergifyio/setup-cli",
+      "versioningTemplate": "github-actions"
+    }
+  ]
+}

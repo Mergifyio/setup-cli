@@ -1,0 +1,104 @@
+name: Continuous Integration
+permissions: read-all
+
+on:
+  pull_request:
+    branches:
+      - main
+      - devs/**
+
+concurrency:
+  # yamllint disable-line rule:line-length
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  linters:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Setup Python 🔧
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: 3.14.5
+
+      - name: Check workflow files
+        uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: -color
+
+      - name: Test 🔍
+        run: |
+          # nosemgrep: generic.ci.security.use-frozen-lockfile.use-frozen-lockfile-pip
+          pip install semgrep yamllint
+          semgrep --config=auto --error
+          yamllint .
+
+  autodoc:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: false
+
+      - name: Regenerate documentation
+        run: ./generate-doc.sh
+
+      - name: Verify Changed files
+        run: |
+          if ! git diff --exit-code -- README.md; then
+            echo "::error::Action documentation is out of date. Run \`./generate-doc.sh\`"
+            exit 1
+          fi
+
+  test-install:
+    timeout-minutes: 5
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Install pinned mergify-cli
+        id: pinned
+        uses: ./
+
+      - name: Assert pinned install
+        env:
+          VERSION: ${{ steps.pinned.outputs.mergify_cli_version }}
+        run: |
+          test -n "$VERSION"
+          mergify --version
+
+      - name: Install latest mergify-cli
+        id: latest
+        uses: ./
+        with:
+          mergify_cli_version: latest
+
+      - name: Assert latest install
+        env:
+          VERSION: ${{ steps.latest.outputs.mergify_cli_version }}
+        run: |
+          test -n "$VERSION"
+          mergify --version
+
+  all-greens:
+    if: ${{ !cancelled() }}
+    needs:
+      - linters
+      - autodoc
+      - test-install
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all jobs succeeded
+        uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
