@@ -1,0 +1,56 @@
+name: Setup Mergify CLI
+description: Install the Mergify CLI (mergify-cli) with version pinning.
+author: Mergify
+branding:
+  icon: terminal
+  color: blue
+inputs:
+  mergify_cli_version:
+    description: |
+      Version of mergify-cli to install. Use `latest` to install the latest
+      released version without pinning.
+    # renovate: datasource=pypi depName=mergify-cli
+    default: 2026.6.8.1
+  python_version:
+    description: Python version to set up for the install (passed to actions/setup-python).
+    default: "3.14"
+outputs:
+  mergify_cli_version:
+    description: |
+      The mergify-cli version that was installed. Resolved from the installed
+      package metadata, so it reflects the real version even when `latest` or an
+      empty input was requested.
+    value: ${{ steps.install.outputs.mergify_cli_version }}
+runs:
+  using: composite
+  steps:
+    - name: Setup Python 🔧
+      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+      with:
+        python-version: ${{ inputs.python_version }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      with:
+        # mergify is too small to benefit + there is no version lock (so no cache key either)
+        enable-cache: false
+
+    - name: Install mergify-cli
+      id: install
+      shell: bash
+      env:
+        MERGIFY_CLI_VERSION: ${{ inputs.mergify_cli_version }}
+      run: |
+        if [ -z "$MERGIFY_CLI_VERSION" ] || [ "$MERGIFY_CLI_VERSION" = "latest" ]; then
+          # --upgrade implies --refresh, so uv re-resolves against PyPI and
+          # installs the newest release even on persistent self-hosted runners
+          # where an older mergify-cli is already cached.
+          uv tool install --upgrade mergify-cli
+        else
+          uv tool install "mergify-cli==$MERGIFY_CLI_VERSION"
+        fi
+        mergify --version
+        # `mergify --version` may print a placeholder while versioning becomes
+        # Rust-native, so read the resolved version from the package metadata.
+        installed=$(uv tool list | awk '/^mergify-cli /{print $2}' | sed 's/^v//')
+        echo "mergify_cli_version=$installed" >> "$GITHUB_OUTPUT"
