@@ -61,7 +61,21 @@ jobs:
 
   test-install:
     timeout-minutes: 5
-    runs-on: ubuntu-24.04
+    # One runner per target triple install.sh supports, so every detection +
+    # extraction path is exercised: linux+macos on both x86_64 and aarch64.
+    # (Windows is added once install.sh ships a Windows path.)
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04        # x86_64-unknown-linux-gnu
+          - ubuntu-24.04-arm    # aarch64-unknown-linux-gnu
+          - macos-15-intel      # x86_64-apple-darwin
+          - macos-15            # aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout 🛎️
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -69,13 +83,17 @@ jobs:
       - name: Install pinned mergify-cli
         id: pinned
         uses: ./
+        with:
+          mergify_cli_version: 2026.6.16.1
 
       - name: Assert pinned install
         env:
           VERSION: ${{ steps.pinned.outputs.mergify_cli_version }}
         run: |
-          test -n "$VERSION"
-          mergify --version
+          # Compare against the literal requested version (not the action's own
+          # readback), so a regression that installs the wrong version fails CI.
+          test "$VERSION" = "2026.6.16.1"
+          test "$(mergify --version | awk '{print $NF}')" = "2026.6.16.1"
 
       - name: Install latest mergify-cli
         id: latest
@@ -88,7 +106,7 @@ jobs:
           VERSION: ${{ steps.latest.outputs.mergify_cli_version }}
         run: |
           test -n "$VERSION"
-          mergify --version
+          test "$(mergify --version | awk '{print $NF}')" = "$VERSION"
 
   all-greens:
     if: ${{ !cancelled() }}

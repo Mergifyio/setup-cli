@@ -1,10 +1,15 @@
 # setup-cli
 
-GitHub Action to install the [Mergify CLI](https://pypi.org/project/mergify-cli/)
+GitHub Action to install the [Mergify CLI](https://github.com/Mergifyio/mergify-cli)
 (`mergify-cli`) with version pinning and Renovate autoupdate.
 
-It sets up Python, installs `uv`, then installs `mergify-cli` (pinned by default,
-`latest` supported) and exposes the resolved version as an output.
+It installs the prebuilt `mergify` binary via the mergify-cli `install.sh`
+installer, which downloads the binary from the GitHub release and verifies it
+against the release `SHA256SUMS`. For a pinned version the installer is fetched
+from that release tag; `latest` uses `main`. The action then puts the binary on
+`PATH` and exposes the installed version as an output. Pinned by default,
+`latest` supported. No Python or toolchain is required; Linux and macOS are
+supported.
 
 More information on https://mergify.com
 
@@ -35,8 +40,7 @@ Pin a specific `mergify-cli` version, or install the latest one:
 
 | Input | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `mergify_cli_version` | string | false | `2026.6.8.1` | Version of mergify-cli to install. Use `latest` to install the latest released version without pinning. |
-| `python_version` | string | false | `3.14` | Python version to set up for the install (passed to actions/setup-python). |
+| `mergify_cli_version` | string | false | `2026.6.16.1` | Version of mergify-cli to install. Use `latest` to install the latest released version without pinning. |
 
 <!-- AUTO-DOC-INPUT:END -->
 
@@ -44,4 +48,4 @@ Pin a specific `mergify-cli` version, or install the latest one:
 
 | Output | Description |
 | --- | --- |
-| `mergify_cli_version` | The `mergify-cli` version that was installed. Resolved from the installed package metadata, so it reflects the real version even when `latest` or an empty input was requested. |
+| `mergify_cli_version` | The `mergify-cli` version that was installed. Read back from the installed binary, so it reflects the real version even when `latest` or an empty input was requested. |

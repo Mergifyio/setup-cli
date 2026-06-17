@@ -11,8 +11,8 @@
   "lockFileMaintenance": { "enabled": true },
   "packageRules": [
     {
-      "matchDatasources": ["pypi"],
-      "matchPackageNames": ["mergify-cli"],
+      "matchDatasources": ["github-releases"],
+      "matchPackageNames": ["Mergifyio/mergify-cli"],
       "minimumReleaseAge": "2 days"
     },
     {
@@ -40,8 +40,9 @@
       "matchStrings": [
         "\\| `mergify_cli_version` \\| string \\| \\w+ \\| `(?<currentValue>[^`]+)` \\|"
       ],
-      "datasourceTemplate": "pypi",
-      "depNameTemplate": "mergify-cli"
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "Mergifyio/mergify-cli",
+      "versioningTemplate": "pep440"
     },
     {
       "description": "Bump the self-referenced action version pinned in the README usage example on each new setup-cli release.",
