@@ -20,22 +20,25 @@ jobs:
       - name: Checkout 🛎️
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - name: Setup Python 🔧
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: 3.14.5
-
       - name: Check workflow files
         uses: docker://rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
         with:
           args: -color
 
-      - name: Test 🔍
-        run: |
-          # nosemgrep: generic.ci.security.use-frozen-lockfile.use-frozen-lockfile-pip
-          pip install semgrep yamllint
-          semgrep --config=auto --error
-          yamllint .
+      # yamllint and semgrep run from their published images (no host Python),
+      # matching the actionlint step above. Renovate manages the tags + digests.
+      - name: Lint YAML 🔍
+        uses: docker://cytopia/yamllint:1@sha256:596fb19eb71e55ba5b2fa56d8c18a615ec82adc8d3bf2d73918cb78c8f3240fb
+        with:
+          args: .
+
+      - name: Security scan 🔒
+        uses: docker://semgrep/semgrep:1.167.0@sha256:06938c1f365d3f67b8cedd8bc117607ae64253f88a0e768e9da9408548927dd6
+        with:
+          # Set the entrypoint explicitly: this image has no ENTRYPOINT, and
+          # pinning it keeps the step correct if a digest bump reintroduces one.
+          entrypoint: semgrep
+          args: --config=auto --error
 
   autodoc:
     timeout-minutes: 5
@@ -43,11 +46,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-        with:
-          enable-cache: false
 
       - name: Regenerate documentation
         run: ./generate-doc.sh
