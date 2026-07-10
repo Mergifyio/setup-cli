@@ -38,7 +38,10 @@ jobs:
           # Set the entrypoint explicitly: this image has no ENTRYPOINT, and
           # pinning it keeps the step correct if a digest bump reintroduces one.
           entrypoint: semgrep
-          args: --config=auto --error
+          # The short minimumReleaseAge in renovate.json is deliberate, and the
+          # rule's suggested opt-out ("minimumReleaseAge": false) is invalid
+          # per the Renovate schema, so the rule is excluded instead.
+          args: --config=auto --error --exclude-rule package_managers.renovate.renovate-missing-minimum-release-age.renovate-missing-minimum-release-age
 
   autodoc:
     timeout-minutes: 5
