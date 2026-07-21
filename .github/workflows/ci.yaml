@@ -90,11 +90,18 @@ jobs:
       - name: Assert pinned install
         env:
           VERSION: ${{ steps.pinned.outputs.mergify_cli_version }}
+          # Must equal the with: input above; Renovate bumps both on each
+          # mergify-cli release. Kept as a separate literal (not derived from
+          # the input) so the assertion checks against a fixed expectation. The
+          # name is mergify-specific so the Renovate customManager that bumps it
+          # cannot collide with any other digit-led env added here later.
+          EXPECTED_MERGIFY_CLI_VERSION: 2026.7.21.1
         run: |
-          # Compare against the literal requested version (not the action's own
-          # readback), so a regression that installs the wrong version fails CI.
-          test "$VERSION" = "2026.7.21.1"
-          test "$(mergify --version | awk '{print $NF}')" = "2026.7.21.1"
+          # Compare against the expected literal requested version (not the
+          # action's own readback), so a regression that installs the wrong
+          # version fails CI.
+          test "$VERSION" = "$EXPECTED_MERGIFY_CLI_VERSION"
+          test "$(mergify --version | awk '{print $NF}')" = "$EXPECTED_MERGIFY_CLI_VERSION"
 
       - name: Install latest mergify-cli
         id: latest

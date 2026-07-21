@@ -45,6 +45,20 @@
       "versioningTemplate": "pep440"
     },
     {
+      "description": "Bump the mergify_cli_version pinned in the ci.yaml dogfooding test on each mergify-cli release, so it lands in the same PR as the action.yml default + README.md table and the three stay aligned. The two matchStrings are anchored to the mergify-specific `mergify_cli_version:` input and `EXPECTED_MERGIFY_CLI_VERSION:` assertion env; both tolerate an optional YAML quote and require a digit-led value, so they cannot collide with an unrelated env and leave the neighbouring `latest` install test untouched.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/ci\\.yaml$/"
+      ],
+      "matchStrings": [
+        "mergify_cli_version: \"?(?<currentValue>\\d[^\\s\"]+)",
+        "EXPECTED_MERGIFY_CLI_VERSION: \"?(?<currentValue>\\d[^\\s\"]+)"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "Mergifyio/mergify-cli",
+      "versioningTemplate": "pep440"
+    },
+    {
       "description": "Bump the self-referenced action version pinned in the README usage example on each new setup-cli release.",
       "customType": "regex",
       "managerFilePatterns": [
