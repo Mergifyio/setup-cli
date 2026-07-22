@@ -10,7 +10,7 @@ inputs:
       Version of mergify-cli to install. Use `latest` to install the latest
       released version without pinning.
     # renovate: datasource=github-releases depName=Mergifyio/mergify-cli versioning=pep440
-    default: 2026.7.8.1
+    default: 2026.7.21.1
 outputs:
   mergify_cli_version:
     description: |

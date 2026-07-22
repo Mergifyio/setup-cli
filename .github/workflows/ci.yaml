@@ -85,7 +85,7 @@ jobs:
         id: pinned
         uses: ./
         with:
-          mergify_cli_version: 2026.6.16.1
+          mergify_cli_version: 2026.7.21.1
 
       - name: Assert pinned install
         env:
@@ -93,8 +93,8 @@ jobs:
         run: |
           # Compare against the literal requested version (not the action's own
           # readback), so a regression that installs the wrong version fails CI.
-          test "$VERSION" = "2026.6.16.1"
-          test "$(mergify --version | awk '{print $NF}')" = "2026.6.16.1"
+          test "$VERSION" = "2026.7.21.1"
+          test "$(mergify --version | awk '{print $NF}')" = "2026.7.21.1"
 
       - name: Install latest mergify-cli
         id: latest
