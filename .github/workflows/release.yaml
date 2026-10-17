@@ -1,0 +1,65 @@
+name: Release
+permissions: {}
+
+on:
+  release:
+    types:
+      - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: A vX.Y.Z release tag; its major tag (vX) is moved
+        required: true
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  move-major-tag:
+    # `uses: Mergifyio/setup-cli@v1` resolves the v1 tag, so it has to follow
+    # every v1.x.y release or users silently stay on an old one.
+    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+    timeout-minutes: 5
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - name: Point the major tag at the latest release of that major
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^(v[0-9]+)\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a vX.Y.Z release tag"
+            exit 1
+          fi
+          major="${BASH_REMATCH[1]}"
+
+          # Use the newest published release of the major rather than $TAG, so
+          # a patch release on an older minor never moves the tag backwards.
+          latest=$(
+            gh api --paginate "repos/$REPO/releases" \
+              --jq '.[] | select((.draft or .prerelease) | not) | .tag_name' \
+              | { grep -E "^${major}\.[0-9]+\.[0-9]+$" || true; } \
+              | sort -V | tail -n 1
+          )
+          if [ -z "$latest" ]; then
+            echo "::error::No published $major.x.y release found"
+            exit 1
+          fi
+          sha=$(gh api "repos/$REPO/commits/$latest" --jq .sha)
+
+          if gh api "repos/$REPO/git/ref/tags/$major" > /dev/null 2>&1; then
+            gh api -X PATCH "repos/$REPO/git/refs/tags/$major" \
+              -f sha="$sha" -F force=true > /dev/null
+          else
+            gh api -X POST "repos/$REPO/git/refs" \
+              -f ref="refs/tags/$major" -f sha="$sha" > /dev/null
+          fi
+
+          test "$(gh api "repos/$REPO/git/ref/tags/$major" --jq .object.sha)" = "$sha"
+          echo "$major -> $latest ($sha)" | tee -a "$GITHUB_STEP_SUMMARY"
