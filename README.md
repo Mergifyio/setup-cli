@@ -15,7 +15,9 @@ More information on https://mergify.com
 
 ## Usage
 
-Pin the action to a released major (see the [releases](https://github.com/Mergifyio/setup-cli/releases)):
+Pin the action to a released major (see the [releases](https://github.com/Mergifyio/setup-cli/releases)).
+The `v1` tag moves to each new `v1.x.y` release; pin a full version such as
+`v1.3.0` to stay on one release:
 
 ```yaml
 - uses: Mergifyio/setup-cli@v1
