@@ -33,7 +33,7 @@ jobs:
           args: .
 
       - name: Security scan 🔒
-        uses: docker://semgrep/semgrep:1.167.0@sha256:06938c1f365d3f67b8cedd8bc117607ae64253f88a0e768e9da9408548927dd6
+        uses: docker://semgrep/semgrep:1.181.0@sha256:81474464c1f07483ba0682a44787fd93c91397419762a04abe2bafaae396304b
         with:
           # Set the entrypoint explicitly: this image has no ENTRYPOINT, and
           # pinning it keeps the step correct if a digest bump reintroduces one.
