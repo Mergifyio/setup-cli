@@ -85,7 +85,7 @@ jobs:
         id: pinned
         uses: ./
         with:
-          mergify_cli_version: 2026.7.21.1
+          mergify_cli_version: 2026.10.8
 
       - name: Assert pinned install
         env:
@@ -95,7 +95,7 @@ jobs:
           # the input) so the assertion checks against a fixed expectation. The
           # name is mergify-specific so the Renovate customManager that bumps it
           # cannot collide with any other digit-led env added here later.
-          EXPECTED_MERGIFY_CLI_VERSION: 2026.7.21.1
+          EXPECTED_MERGIFY_CLI_VERSION: 2026.10.8
         run: |
           # Compare against the expected literal requested version (not the
           # action's own readback), so a regression that installs the wrong
