@@ -2,14 +2,20 @@ name: Release
 permissions: {}
 
 on:
+  push:
+    branches:
+      - main
   release:
     types:
       - published
   workflow_dispatch:
     inputs:
       tag:
-        description: A vX.Y.Z release tag; its major tag (vX) is moved
-        required: true
+        description: >-
+          A vX.Y.Z release tag whose major tag (vX) is moved. Leave empty to
+          move the newest release's major and dry-run the release a push to
+          this branch would cut.
+        required: false
         type: string
 
 concurrency:
@@ -17,10 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  move-major-tag:
-    # `uses: Mergifyio/setup-cli@v1` resolves the v1 tag, so it has to follow
-    # every v1.x.y release or users silently stay on an old one.
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+  release:
+    if: ${{ github.event_name != 'release' || !github.event.release.prerelease }}
     timeout-minutes: 5
     runs-on: ubuntu-26.04
     permissions:
@@ -28,9 +32,95 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
+      - name: Release main if its default mergify-cli version is not released
+        id: release
+        if: ${{ github.event_name != 'release' && !inputs.tag }}
+        env:
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' }}
+        run: |
+          set -euo pipefail
+          default_cli() {
+            local version
+            version=$(
+              gh api "repos/$REPO/contents/action.yml?ref=$1" \
+                -H "Accept: application/vnd.github.raw" \
+                | yq '.inputs.mergify_cli_version.default'
+            )
+            if [ -z "$version" ] || [ "$version" = null ]; then
+              echo "::error::No inputs.mergify_cli_version.default in action.yml at $1" >&2
+              exit 1
+            fi
+            echo "$version"
+          }
+
+          current=$(default_cli "$GITHUB_SHA")
+
+          # Compare against the latest release rather than this push's diff:
+          # a run that failed, or a push carrying several commits, is caught
+          # up by the next push to main.
+          latest=$(
+            gh api --paginate "repos/$REPO/releases" \
+              --jq '.[] | select((.draft or .prerelease) | not) | .tag_name' \
+              | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } \
+              | sort -V | tail -n 1
+          )
+          if [[ ! "$latest" =~ ^v([0-9]+)\.([0-9]+)\.[0-9]+$ ]]; then
+            echo "::error::No published vX.Y.Z release found"
+            exit 1
+          fi
+          next="v${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1)).0"
+          echo "tag=$latest" >> "$GITHUB_OUTPUT"
+
+          released=$(default_cli "$latest")
+          if [ "$current" = "$released" ]; then
+            echo "$latest already installs mergify-cli $current by default" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # A human used to be the guard against shipping a breaking change
+          # as a minor and moving the major tag onto it.
+          messages=$(gh api "repos/$REPO/compare/$latest...$GITHUB_SHA" --jq '.commits[].commit.message')
+          if grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:' <<< "$messages"; then
+            echo "::error::A breaking change landed since $latest: release the next major by hand"
+            exit 1
+          fi
+          # On an existing tag the API ignores --target and publishes the
+          # release on whatever commit that tag points at.
+          if gh api "repos/$REPO/git/ref/tags/$next" > /dev/null 2>&1; then
+            echo "::error::Tag $next exists without a published release: publish or delete it"
+            exit 1
+          fi
+
+          generated=$(
+            gh api -X POST "repos/$REPO/releases/generate-notes" \
+              -f tag_name="$next" -f target_commitish="$GITHUB_SHA" \
+              -f previous_tag_name="$latest" --jq .body
+          )
+          notes="Installs [mergify-cli $current](https://github.com/Mergifyio/mergify-cli/releases/tag/$current) by default (was $released).
+
+          $generated"
+          if [ "$DRY_RUN" = true ]; then
+            {
+              echo "Dry run: would release $next at $GITHUB_SHA with these notes:"
+              echo
+              echo "$notes"
+            } | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          gh release create "$next" --repo "$REPO" --target "$GITHUB_SHA" \
+            --title "$next" --notes "$notes"
+          echo "tag=$next" >> "$GITHUB_OUTPUT"
+          echo "Released $next at $GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # `uses: Mergifyio/setup-cli@v1` resolves the v1 tag, so it has to follow
+      # every v1.x.y release or users silently stay on an old one. It also runs
+      # on every push: a release created with GITHUB_TOKEN triggers no
+      # `release` workflow, and a move that failed is repaired by the next run.
       - name: Point the major tag at the latest release of that major
+        env:
+          TAG: ${{ steps.release.outputs.tag || inputs.tag || github.event.release.tag_name }}
         run: |
           set -euo pipefail
           if [[ ! "$TAG" =~ ^(v[0-9]+)\.[0-9]+\.[0-9]+$ ]]; then
@@ -53,7 +143,12 @@ jobs:
           fi
           sha=$(gh api "repos/$REPO/commits/$latest" --jq .sha)
 
-          if gh api "repos/$REPO/git/ref/tags/$major" > /dev/null 2>&1; then
+          # gh prints the error body on stdout, so a missing ref must reset it.
+          current=$(gh api "repos/$REPO/git/ref/tags/$major" --jq .object.sha 2> /dev/null) || current=""
+          if [ "$current" = "$sha" ]; then
+            echo "$major already points at $latest ($sha)" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          elif [ -n "$current" ]; then
             gh api -X PATCH "repos/$REPO/git/refs/tags/$major" \
               -f sha="$sha" -F force=true > /dev/null
           else
