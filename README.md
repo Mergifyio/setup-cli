@@ -17,7 +17,8 @@ More information on https://mergify.com
 
 Pin the action to a released major (see the [releases](https://github.com/Mergifyio/setup-cli/releases)).
 The `v1` tag moves to each new `v1.x.y` release; pin a full version such as
-`v1.3.0` to stay on one release:
+`v1.3.0` to stay on one release. A change of the default `mergify-cli` version
+releases itself as the next `v1.x.0` once it lands on `main`:
 
 ```yaml
 - uses: Mergifyio/setup-cli@v1
