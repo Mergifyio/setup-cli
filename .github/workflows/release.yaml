@@ -121,6 +121,8 @@ jobs:
       - name: Point the major tag at the latest release of that major
         env:
           TAG: ${{ steps.release.outputs.tag || inputs.tag || github.event.release.tag_name }}
+          # Empty on a dispatch with a tag: that one only picks the major.
+          RELEASED: ${{ steps.release.outputs.tag || github.event.release.tag_name }}
         run: |
           set -euo pipefail
           if [[ ! "$TAG" =~ ^(v[0-9]+)\.[0-9]+\.[0-9]+$ ]]; then
@@ -131,17 +133,21 @@ jobs:
 
           # Use the newest published release of the major rather than $TAG, so
           # a patch release on an older minor never moves the tag backwards.
+          # $RELEASED is counted on its own: the releases list can take a
+          # second or two to show a release created moments ago.
           latest=$(
-            gh api --paginate "repos/$REPO/releases" \
-              --jq '.[] | select((.draft or .prerelease) | not) | .tag_name' \
-              | { grep -E "^${major}\.[0-9]+\.[0-9]+$" || true; } \
+            {
+              echo "$RELEASED"
+              gh api --paginate "repos/$REPO/releases" \
+                --jq '.[] | select((.draft or .prerelease) | not) | .tag_name'
+            } | { grep -E "^${major}\.[0-9]+\.[0-9]+$" || true; } \
               | sort -V | tail -n 1
           )
           if [ -z "$latest" ]; then
             echo "::error::No published $major.x.y release found"
             exit 1
           fi
-          sha=$(gh api "repos/$REPO/commits/$latest" --jq .sha)
+          sha=$(gh api "repos/$REPO/commits/refs/tags/$latest" --jq .sha)
 
           # gh prints the error body on stdout, so a missing ref must reset it.
           current=$(gh api "repos/$REPO/git/ref/tags/$major" --jq .object.sha 2> /dev/null) || current=""
