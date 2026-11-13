@@ -43,7 +43,7 @@ Pin a specific `mergify-cli` version, or install the latest one:
 
 | Input | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `mergify_cli_version` | string | false | `2026.11.5` | Version of mergify-cli to install. Use `latest` to install the latest released version without pinning. |
+| `mergify_cli_version` | string | false | `2026.11.8` | Version of mergify-cli to install. Use `latest` to install the latest released version without pinning. |
 
 <!-- AUTO-DOC-INPUT:END -->
 
