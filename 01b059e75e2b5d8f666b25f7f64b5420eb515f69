@@ -1,1 +1,6 @@
-Retargeted to mergify-cli 2026.11.22 (skip flag of 2026.11.20, OIDC for every command); body lists 2026.11.20-22 changes
+Revision history for #29:
+
+rev 2 (content) 2026-11-26 18:08 UTC — Retargeted to mergify-cli 2026.11.22 (skip flag of 2026.11.20, OIDC for every command); body lists 2026.11.20-22 changes
+rev 1 (initial) 2026-11-26 18:08 UTC
+
+<!-- mergify-revision-data: {"schema_version":1,"pull_number":29,"entries":[{"number":1,"change_type":"initial","old_sha":null,"new_sha":"d11ea13c4474f9f606c7d3ce76e4f3c28e540f0e","timestamp_iso":"2026-11-26T18:08:51Z","reason":"","replay_sha":null,"compare_url":null},{"number":2,"change_type":"content","old_sha":"d11ea13c4474f9f606c7d3ce76e4f3c28e540f0e","new_sha":"01b059e75e2b5d8f666b25f7f64b5420eb515f69","timestamp_iso":"2026-11-26T18:08:51Z","reason":"Retargeted to mergify-cli 2026.11.22 (skip flag of 2026.11.20, OIDC for every command); body lists 2026.11.20-22 changes","replay_sha":null,"compare_url":"https://github.com/Mergifyio/setup-cli/compare/d11ea13c4474f9f606c7d3ce76e4f3c28e540f0e...01b059e75e2b5d8f666b25f7f64b5420eb515f69"}]} -->
