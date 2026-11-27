@@ -51,8 +51,22 @@ runs:
         # install.sh supports Linux and macOS only.
         tmp=$(mktemp -d)
         trap 'rm -rf "${tmp}"' EXIT
-        curl -fsSL "https://raw.githubusercontent.com/${REPO}/${ref}/install.sh" -o "${tmp}/install.sh" \
-          || die "failed to fetch install.sh (ref ${ref})"
+        url="https://raw.githubusercontent.com/${REPO}/${ref}/install.sh"
+        # raw.githubusercontent.com answers a 503 or a 504 now and then: retry
+        # those and timeouts the way install.sh retries its own downloads, the
+        # wait doubling from one second. The two timeouts make a stalled
+        # connection or answer a retried timeout, and --retry-max-time stops
+        # the retries after five minutes, even when a Retry-After header asks
+        # for longer. A 404 fails at once. curl 8.14 exits 0 on an error it
+        # does not retry, such as that 404, so the status code is checked too.
+        if ! status=$(curl -fsSL --retry 8 --retry-max-time 300 --connect-timeout 10 --max-time 30 \
+          -w '%{http_code}' -o "${tmp}/install.sh" "${url}") || [ "${status}" != 200 ]; then
+          # On main, a 404 is not the input's fault.
+          if [ "${status}" = 404 ] && [ "${ref}" != main ]; then
+            die "${url} does not exist: mergify_cli_version ${ref} is not a mergify-cli release that ships install.sh"
+          fi
+          die "could not download ${url}, see the curl error above"
+        fi
         MERGIFY_VERSION="${MERGIFY_CLI_VERSION}" MERGIFY_INSTALL_DIR="${bindir}" sh "${tmp}/install.sh"
 
         # Expose the binary to later steps and read the version back from it

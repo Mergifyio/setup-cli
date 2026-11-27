@@ -116,12 +116,46 @@ jobs:
           test -n "$VERSION"
           test "$(mergify --version | awk '{print $NF}')" = "$VERSION"
 
+  test-install-retry:
+    timeout-minutes: 5
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Point raw.githubusercontent.com at an address that never answers
+        run: |
+          # 192.0.2.1 is reserved for documentation (RFC 5737): a connection
+          # to it hangs, so the first download of install.sh times out.
+          echo "192.0.2.1 raw.githubusercontent.com" | sudo tee -a /etc/hosts
+          # Restore the name once curl is seen connecting to the dead address,
+          # so the install can only succeed on a later attempt.
+          restore_after_first_attempt() {
+            until ss -tnH state syn-sent dst 192.0.2.1 | grep -q .; do sleep 0.2; done
+            sudo sed -i "/raw.githubusercontent.com/d" /etc/hosts
+            date -u +%T > "$RUNNER_TEMP/first-attempt-hung"
+          }
+          restore_after_first_attempt > /dev/null 2>&1 &
+
+      - name: Install mergify-cli
+        id: install
+        uses: ./
+
+      - name: Assert the install succeeded on a retry
+        env:
+          VERSION: ${{ steps.install.outputs.mergify_cli_version }}
+        run: |
+          test -f "$RUNNER_TEMP/first-attempt-hung"
+          echo "First attempt hung on 192.0.2.1, name restored at $(cat "$RUNNER_TEMP/first-attempt-hung") UTC"
+          test "$(mergify --version | awk '{print $NF}')" = "$VERSION"
+
   all-greens:
     if: ${{ !cancelled() }}
     needs:
       - linters
       - autodoc
       - test-install
+      - test-install-retry
     runs-on: ubuntu-26.04
     steps:
       - name: Verify all jobs succeeded

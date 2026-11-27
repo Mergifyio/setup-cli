@@ -6,7 +6,8 @@ GitHub Action to install the [Mergify CLI](https://github.com/Mergifyio/mergify-
 It installs the prebuilt `mergify` binary via the mergify-cli `install.sh`
 installer, which downloads the binary from the GitHub release and verifies it
 against the release `SHA256SUMS`. For a pinned version the installer is fetched
-from that release tag; `latest` uses `main`. The action then puts the binary on
+from that release tag; `latest` uses `main`. The action retries that fetch on
+timeouts and server errors for up to five minutes. It then puts the binary on
 `PATH` and exposes the installed version as an output. Pinned by default,
 `latest` supported. No Python or toolchain is required; Linux and macOS are
 supported.
